@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="chs">
+
+<head>
+
+<meta charset="utf-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge"/>
+<meta name="viewport"
+	content="width=device-width, shrink-to-fit=no, initial-scale=1"/>
+<meta name="description" content=""/>
+<meta name="author" content=""/>
+
+<title>日志归档系统</title>
+
+<!-- Custom CSS -->
+<link href="/css/simple-sidebar.css" rel="stylesheet"/>
+
+<!-- Bootstrap core CSS -->
+<link rel="stylesheet"
+	href="/css/bootstrap.min.css"
+	/>
+
+<!-- JQuery and Bootstrap core JS -->	
+<script
+	src="/js/jquery/1.11.3/jquery.min.js"></script>
+<script
+	src="/js/bootstrap.min.js"></script>
+<script
+	src="/js/bootstrap3-validation.js"></script>
+</head>
+
+<body>
+
+	<div id="wrapper">
+
+		<!-- Sidebar -->
+		<div id="sidebar-wrapper">
+			<ul class="sidebar-nav">
+				<li class="sidebar-brand"><a>菜单</a></li>
+				<li><a href="/server/list">服务器列表</a></li>
+				<li><a href="/settings/list">参数设置</a></li>
+				<li><a href="/history/list">归档记录</a></li>
+			</ul>
+		</div>
+		<!-- /#sidebar-wrapper -->
+
+		<!-- Page Content -->
+		<div id="page-content-wrapper">
+			<div class="container-fluid">
+				<div layout:fragment="content">
+					<!-- ============================================================================ -->
+					<!-- This content is only used for static prototyping purposes (natural templates)-->
+					<!-- and is therefore entirely optional.                                          -->
+					<!-- ============================================================================ -->
+					<h1>Static content for prototyping purposes only</h1>
+
+					<p>Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+						Praesent scelerisque neque neque, ac elementum quam dignissim
+						interdum. Phasellus et placerat elit. Lorem ipsum dolor sit amet,
+						consectetur adipiscing elit. Praesent scelerisque neque neque, ac
+						elementum quam dignissim interdum. Phasellus et placerat elit.</p>
+
+				</div>
+			</div>
+			<a href="#menu-toggle" class="btn btn-danger" id="menu-toggle">菜单</a>
+		</div>
+		<!-- /#page-content-wrapper -->
+
+	</div>
+	<!-- /#wrapper -->
+
+	<!-- Menu Toggle Script -->
+	<script>
+    $("#menu-toggle").click(function(e) {
+        e.preventDefault();
+        $("#wrapper").toggleClass("toggled");
+    });
+    $("form").validation();
+    $("button[type='submit']").on('click',function(event){
+        // 2.最后要调用 valid()方法。
+        if ($("#"+this.title).valid(this,"error!")==false){
+          return false;
+        }
+      });
+    </script>
+
+</body>
+
+</html>

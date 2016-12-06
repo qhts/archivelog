@@ -1,0 +1,104 @@
+<html layout:decorator="layout">
+<meta charset="utf-8"/>
+<div layout:fragment="content">
+	<button type="button" class="btn btn-danger" data-toggle="modal" data-target="#addModal">
+	  添加服务器
+	</button>
+	
+	<table class="table table-striped" id="news_list">
+		<thead>
+			<tr>
+				<th>序号</th>
+				<th>服务器IP</th>
+				<th>备注</th>
+				<th>启用配置名称</th>
+				<th>操作</th>
+			</tr>
+		</thead>
+		<tbody>
+			<tr th:each="server : ${servers}">
+				<td class="message" th:text="${server.id}"></td>
+				<td class="message" th:text="${server.IP}"></td>
+				<td class="message" th:text="${server.remark}"></td>
+				<td class="message" th:text="${server.name}"></td>
+				<td><a th:href="@{'/server/{id}/delete'(id=${server.id})}"
+					class="delete" onclick="return confirm('确认删除？');"> <span class="fa-stack"> <i style="color:red"
+							class="glyphicon glyphicon-trash"></i>
+					</span></a> 
+					<a href="javascript:#" class="edit" data-toggle="modal" th:attr="data-target=${'#updModal'+server.id}"><span class="fa-stack"> <i style="color:red"
+							class="glyphicon glyphicon-edit"></i>
+					</span>
+				</a></td>
+			</tr>
+		</tbody>
+	</table>
+	
+	<!-- Modal -->
+	<form action="/server/add" method="post" id="add">
+		<div class="modal fade" id="addModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+		  <div class="modal-dialog">
+		    <div class="modal-content">
+		      <div class="modal-header">
+		        <h4 class="modal-title" id="myModalLabel">添加服务器</h4>
+		      </div>
+		      <div class="modal-body">
+				  <div class="form-group">
+				    <label for="ip">服务器地址</label>
+				    <input type="text" class="form-control" id="ip" name="IP" placeholder="输入IP" check-type="required" required-message="服务器地址不能为空！"/>
+				  </div>
+				  <div class="form-group">
+				    <label for="remark">备注</label>
+				    <input type="text" class="form-control" id="remark" name="remark" placeholder="输入备注"/>
+				  </div>
+				  <div class="form-group">
+				  	<label for="settings">启用配置</label>
+				  	<select class="form-control" id="settings" name="settingsId">
+				    	<option th:each="settings : ${set}" th:value="${settings.id}" th:text="${settings.name}"></option>
+				    </select>
+				  </div>
+		      </div>
+		      <div class="modal-footer">
+		        <button type="button" class="btn btn-default" data-dismiss="modal">关闭</button>
+		        <button type="submit" class="btn btn-primary" title="add">保存</button>
+		      </div>
+		    </div>
+		  </div>
+		</div>
+	</form>
+	
+	<form action="/server/update" method="post" th:each="server : ${servers}" th:id="${'upd'+server.id}">
+		<div class="modal fade" th:id="${'updModal'+server.id}" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+		  <div class="modal-dialog">
+		    <div class="modal-content">
+		      <div class="modal-header">
+		        <h4 class="modal-title">修改服务器</h4>
+		      </div>
+		      <div class="modal-body">
+		      	  <input type="hidden" name="id" th:value="${server.id}"/>
+				  <div class="form-group">
+				    <label th:for="${'ip'+server.id}">服务器地址</label>
+				    <input type="text" th:value="${server.IP}" class="form-control required" th:id="${'ip'+server.id}" name="IP" placeholder="输入IP" check-type="required" required-message="服务器地址不能为空！"/>
+				  </div>
+				  <div class="form-group">
+				    <label th:for="${'remark'+server.id}">备注</label>
+				    <input type="text" th:value="${server.remark}" class="form-control" th:id="${'remark'+server.id}" name="remark" placeholder="输入备注"/>
+				  </div>
+				  <div class="form-group">
+				  	<label for="${'settings'+server.id}">启用配置</label>
+				  	<select class="form-control" id="${'settings'+server.id}" name="settingsId">
+				    	<option th:each="settings : ${set}" th:value="${settings.id}" th:text="${settings.name}"></option>
+				    </select>
+				  </div>
+		      </div>
+		      <div class="modal-footer">
+		        <button type="button" class="btn btn-default" data-dismiss="modal">关闭</button>
+		        <button type="submit" class="btn btn-primary" th:title="${'upd'+server.id}">保存</button>
+		      </div>
+		    </div>
+		  </div>
+		</div>
+	</form>
+	
+</div>
+
+</html>

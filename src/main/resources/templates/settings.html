@@ -1,0 +1,118 @@
+<html layout:decorator="layout">
+<meta charset="utf-8"/>
+<div layout:fragment="content">
+	<button type="button" class="btn btn-danger" data-toggle="modal" data-target="#addModal">
+	  添加设置
+	</button>
+	
+	<table class="table table-striped" id="news_list">
+		<thead>
+			<tr>
+				<th>名称</th>
+				<th>日志源目录</th>
+				<th>压缩后文件前缀(会自动加上日期)</th>
+				<th>归档多久前数据（天）</th>
+				<th>归档路径（本地）</th>
+				<th>操作</th>
+			</tr>
+		</thead>
+		<tbody>
+			<tr th:each="s : ${settings}">
+				<td class="message" th:text="${s.name}"></td>
+				<td class="message" th:text="${s.logSourceDir}"></td>
+				<td class="message" th:text="${s.zipPrefix}"></td>
+				<td class="message" th:text="${s.modifyTime}"></td>
+				<td class="message" th:text="${s.storageDir}"></td>
+				<td><a th:href="@{'/settings/{id}/delete'(id=${s.id})}"
+					class="delete" onclick="return confirm('确认删除？');"> <span class="fa-stack"> <i style="color:red"
+							class="glyphicon glyphicon-trash"></i>
+					</span></a> 
+					<a href="javascript:#" class="edit" data-toggle="modal" th:attr="data-target=${'#updModal'+s.id}"><span class="fa-stack"> <i style="color:red"
+							class="glyphicon glyphicon-edit"></i>
+					</span>
+				</a></td>
+			</tr>
+		</tbody>
+	</table>
+	
+	<!-- Modal -->
+	<form action="/settings/add" method="post" id="add">
+		<div class="modal fade" id="addModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+		  <div class="modal-dialog">
+		    <div class="modal-content">
+		      <div class="modal-header">
+		        <h4 class="modal-title" id="myModalLabel">添加服务器</h4>
+		      </div>
+		      <div class="modal-body">
+		      	  <div class="form-group">
+				    <label for="name">设置名称</label>
+				    <input type="text" class="form-control" id="name" name="name" placeholder="输入名称" check-type="required" required-message="名称不能为空！"/>
+				  </div>
+				  <div class="form-group">
+				    <label for="logSourceDir">日志源目录</label>
+				    <input type="text" class="form-control" id="logSourceDir" name="logSourceDir" placeholder="输入目录" check-type="required" required-message="日志源目录不能为空！"/>
+				  </div>
+				  <div class="form-group">
+				    <label for="zipPrefix">压缩后文件前缀(会自动加上日期)</label>
+				    <input type="text" class="form-control" id="zipPrefix" name="zipPrefix" placeholder="输入文件前缀" check-type="required" required-message="文件前缀不能为空！"/>
+				  </div>
+				  <div class="form-group">
+				    <label for="modifyTime">归档多久前数据（天）</label>
+				    <input type="number" class="form-control" id="modifyTime" name="modifyTime" placeholder="输入天数" check-type="number" required-message="天数不合法"/>
+				  </div>
+				  <div class="form-group">
+				    <label for="modifyTime">归档路径（本地）</label>
+				    <input type="text" class="form-control" id="storageDir" name="storageDir" placeholder="输入路径" check-type="required" required-message="路径不合法"/>
+				  </div>
+		      </div>
+		      <div class="modal-footer">
+		        <button type="button" class="btn btn-default" data-dismiss="modal">关闭</button>
+		        <button type="submit" class="btn btn-primary" title="add">保存</button>
+		      </div>
+		    </div>
+		  </div>
+		</div>
+	</form>
+	
+	<form action="/settings/update" method="post" th:each="s : ${settings}" th:id="${'upd'+s.id}">
+		<div class="modal fade" th:id="${'updModal'+s.id}" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+		  <div class="modal-dialog">
+		    <div class="modal-content">
+		      <div class="modal-header">
+		        <h4 class="modal-title">修改服务器</h4>
+		      </div>
+		      <div class="modal-body">
+		      	  <input type="hidden" name="id" th:value="${s.id}"/>
+		      	  <div class="form-group">
+				    <label th:for="${'name'+s.id}">设置名称</label>
+				    <input type="text" class="form-control" id="${'name'+s.id}" name="name" th:value="${s.name}" placeholder="输入名称" check-type="required" required-message="名称不能为空！"/>
+				  </div>
+				  <div class="form-group">
+				    <label th:for="${'logSourceDir'+s.id}">日志源目录</label>
+				    <input type="text" class="form-control" id="${'logSourceDir'+s.id}" name="logSourceDir" th:value="${s.logSourceDir}" placeholder="输入目录" check-type="required" required-message="日志源目录不能为空！"/>
+				  </div>
+				  <div class="form-group">
+				    <label th:for="${'zipPrefix'+s.id}">压缩后文件前缀(会自动加上日期)</label>
+				    <input type="text" class="form-control" id="${'zipPrefix'+s.id}" name="zipPrefix" th:value="${s.zipPrefix}" placeholder="输入文件前缀" check-type="required" required-message="文件前缀不能为空！"/>
+				  </div>
+				  <div class="form-group">
+				    <label th:for="${'modifyTime'+s.id}">归档多久前数据（天）</label>
+				    <input type="number" class="form-control" id="${'modifyTime'+s.id}" name="modifyTime" th:value="${s.modifyTime}" placeholder="输入天数" check-type="number" required-message="天数不合法"/>
+				  </div>
+				  <div class="form-group">
+				    <label th:for="${'storageDir'+s.id}">归档路径（本地）</label>
+				    <input type="text" class="form-control" id="${'storageDir'+s.id}" name="storageDir" th:value="${s.storageDir}" placeholder="输入路径" check-type="required" required-message="路径不合法"/>
+				  </div>
+		      </div>
+		      <div class="modal-footer">
+		        <button type="button" class="btn btn-default" data-dismiss="modal">关闭</button>
+		        <button type="submit" class="btn btn-primary" th:title="${'upd'+s.id}">保存</button>
+		      </div>
+		    </div>
+		  </div>
+		</div>
+	</form>
+	
+</div>
+
+</html>

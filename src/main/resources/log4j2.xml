@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>    
+<!-- status="OFF"，可以去掉，它的含义为是否记录log4j2本身的event信息，默认是OFF -->
+<configuration status="off">  
+    <Properties>  
+    </Properties>  
+    <appenders>    
+        <Console name="console" target="SYSTEM_OUT">    
+          <PatternLayout pattern="[%d{yyyy-MM-dd HH:mm:ss} %-5p] [%t] {%c}-%m%n"/>    
+          <Filters>
+          	<ThresholdFilter level="debug"/>
+          </Filters>
+        </Console>   
+    
+   </appenders>  
+   
+   <loggers>    
+	<!-- 定义全局。其他包的日志只输出到控制台，不输出到日志文件 -->
+	<root level="info">
+		<appender-ref ref="console" />
+	</root>
+  </loggers>   
+</configuration>  
