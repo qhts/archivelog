@@ -1,10 +1,10 @@
 package com.newera.ops.archivelog.util;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -23,9 +23,9 @@ import ch.ethz.ssh2.SCPClient;
 import ch.ethz.ssh2.Session;
 import ch.ethz.ssh2.StreamGobbler;
 
-import com.newera.ops.archivelog.dto.Result;
 import com.newera.ops.archivelog.dto.ScpCommond;
 import com.newera.ops.archivelog.dto.ShellCommond;
+import com.newera.ops.archivelog.dto.ShellWrapper;
 
 
 /**
@@ -56,86 +56,102 @@ public final class ShellUtil {
 	private ShellUtil(){}
 	/**
 	 * 执行一条shell命令 
-	 * @param commond shell命令
-	 * @return 结果
+	 * @param wrapper shell命令
 	 * @throws Exception 异常
 	 */
-	public Result execshell(ShellCommond commond) throws Exception{
-		logger.info("执行机器："+commond.getIP()+",同步执行脚本："+commond.getShell());
-		Connection conn = null;
-		Session sess = null;
-		BufferedReader br = null;
-		BufferedReader ebr = null;
-		Result r = new Result();
-		StringBuffer sb = new StringBuffer();
-		Integer sig = null;
-		try{
-			conn = getOpenedConnection(commond.getIP(), commond.getSshPort());
-			sess = conn.openSession();
-			sess.execCommand(commond.getShell());
-			br = new BufferedReader(new InputStreamReader(new StreamGobbler(sess.getStdout()),"utf8"));
-			ebr = new BufferedReader(new InputStreamReader(new StreamGobbler(sess.getStderr()),"utf8"));
-			while((sig=sess.getExitStatus()) == null){
+	public void execWrapper(ShellWrapper wrapper) throws Exception{
+		if(wrapper.getCommond() instanceof ShellCommond){
+			logger.info("执行机器："+wrapper.getCommond().getIP()+",同步执行脚本："+((ShellCommond)wrapper.getCommond()).getShell());
+			Connection conn = null;
+			Session sess = null;
+			BufferedReader br = null;
+			BufferedReader ebr = null;
+			StringBuffer sb = new StringBuffer();
+			Integer sig = null;
+			try{
+				conn = getOpenedConnection(wrapper.getCommond().getIP(), wrapper.getCommond().getSshPort());
+				sess = conn.openSession();
+				sess.execCommand(((ShellCommond)wrapper.getCommond()).getShell());
+				br = new BufferedReader(new InputStreamReader(new StreamGobbler(sess.getStdout()),"utf8"));
+				ebr = new BufferedReader(new InputStreamReader(new StreamGobbler(sess.getStderr()),"utf8"));
+				while((sig=sess.getExitStatus()) == null){
+					loadFromStream(br, sb);
+					loadFromStream(ebr, sb);
+					sig = sess.getExitStatus();
+					Thread.sleep(1);
+				}
 				loadFromStream(br, sb);
 				loadFromStream(ebr, sb);
-				sig = sess.getExitStatus();
-				Thread.sleep(1);
+			}finally{
+				if(sess!=null){
+					sess.close();
+				}
+				if(conn!=null){
+					conn.close();
+				}
+				if(br != null){
+					br.close();
+				}
+				if(ebr != null){
+					ebr.close();
+				}
+				wrapper.setResult(sb.toString());
+				wrapper.setStateCode(sig);
 			}
-			loadFromStream(br, sb);
-			loadFromStream(ebr, sb);
-		}finally{
-			if(sess!=null){
-				 sess.close();
-			 }
-			 if(conn!=null){
-				 conn.close();
-			 }
-			 if(br != null){
-				 br.close();
-			 }
-			 if(ebr != null){
-				 ebr.close();
-			 }
-			 r.setResult(sb.toString());
-			 r.setStateCode(sig);
+		}else if(wrapper.getCommond() instanceof ScpCommond){
+			logger.info("远端机器：" + wrapper.getCommond().getIP() + ",从远端拉取【" + ((ScpCommond)wrapper.getCommond()).getRemotePath() + 
+					"】到【" + ((ScpCommond)wrapper.getCommond()).getLocalPath() + "】");
+			Connection conn = null;
+			SCPClient scpClient = null;
+			try{
+				conn = getOpenedConnection(wrapper.getCommond().getIP(), wrapper.getCommond().getSshPort());
+				scpClient = conn.createSCPClient();
+				File f = new File(((ScpCommond)wrapper.getCommond()).getLocalPath());
+				if(!f.exists()){
+					f.mkdirs();
+				}
+				scpClient.get(((ScpCommond)wrapper.getCommond()).getRemotePath(), ((ScpCommond)wrapper.getCommond()).getLocalPath());
+				wrapper.setResult("文件下载成功");
+				wrapper.setStateCode(0);
+			}catch(Exception e){
+				wrapper.setResult(e.toString());
+				wrapper.setStateCode(1);
+			}finally{
+				if(conn!=null){
+					conn.close();
+				}
+			}
 		}
-		return r;
 		
 	}
 	
 	/**
 	 * 执行多条shell命令
-	 * @param commonds shell命令
+	 * @param wrappers wrappers
 	 * @param parallel 是否并行
-	 * @return 结果
 	 * @throws Exception 异常
 	 */
 	@SuppressWarnings("unchecked")
-	public List<Result> batchExecShell(List<ShellCommond> commonds,Boolean parallel) throws Exception{
-		List<Result> rs = new ArrayList<Result>();
-		if(commonds!=null && commonds.size()>0){
+	public void batchExecShell(List<ShellWrapper> wrappers,Boolean parallel) throws Exception{
+		if(wrappers!=null && wrappers.size()>0){
 			if(parallel){
 				Map<String,Connection> cons = new HashMap<String,Connection>();
-				Future<Result>[] fs = new Future[commonds.size()];
+				Future<ShellWrapper>[] fs = new Future[wrappers.size()];
 				try{
 					//根据IP建立连接
-					for(int i=0;i<commonds.size();i++){
-						if(cons.get(commonds.get(i).getIP())==null){
-							Connection con = getOpenedConnection(commonds.get(i).getIP(), commonds.get(i).getSshPort());
-							cons.put(commonds.get(i).getIP(), con);
+					for(int i=0;i<wrappers.size();i++){
+						if(cons.get(wrappers.get(i).getCommond().getIP())==null){
+							Connection con = getOpenedConnection(wrappers.get(i).getCommond().getIP(), wrappers.get(i).getCommond().getSshPort());
+							cons.put(wrappers.get(i).getCommond().getIP(), con);
 						}
-						logger.info("执行机器："+commonds.get(i).getIP()+",异步执行脚本："+commonds.get(i).getShell());
-						fs[i] = pool.submit(new ExecShellThread(cons.get(commonds.get(i).getIP()),commonds.get(i)));
+						fs[i] = pool.submit(new ExecShellThread(cons.get(wrappers.get(i).getCommond().getIP()),wrappers.get(i)));
 					}
-					for(int i=0;i<commonds.size();i++){
+					for(int i=0;i<wrappers.size();i++){
 						try {
-							Result r = fs[i].get();
-							rs.add(i, r);
+							fs[i].get();
 						} catch (Exception e) {
-							Result r = new Result();
-							r.setShellCommond(commonds.get(i));
-							r.setStateCode(1);
-							r.setResult(e.toString());
+							wrappers.get(i).setResult(e.toString());
+							wrappers.get(i).setStateCode(1);
 							e.printStackTrace();
 						}
 					}
@@ -148,58 +164,9 @@ public final class ShellUtil {
 					}
 				}
 			}else{
-				for(ShellCommond s:commonds){
-					rs.add(execshell(s));
+				for(ShellWrapper s:wrappers){
+					execWrapper(s);
 				}
-			}
-		}
-		return rs;
-	}
-	
-	/**
-	 * scp命令
-	 * @param scp scp命令
-	 * @throws Exception 异常
-	 */
-	public void exeScpPut(ScpCommond scp) throws Exception{
-		String lp = "";
-		for(int i = 0;i<scp.getLocalPath().length;i++){
-			lp += scp.getLocalPath()[i]+",";
-		}
-		logger.info("远端机器："+scp.getIP()+",复制文件【"+lp+"】到【"+scp.getRemotePath()[0]+"】");
-		Connection conn = null;
-		SCPClient scpClient = null;
-		try{
-			conn = getOpenedConnection(scp.getIP(), scp.getSshPort());
-			scpClient = conn.createSCPClient();
-			scpClient.put(scp.getLocalPath(), scp.getRemotePath()[0]);
-		}finally{
-			if(conn!=null){
-				conn.close();
-			}
-		}
-	}
-	
-	/**
-	 * 执行远程下载命令
-	 * @param scp scp命令
-	 * @throws Exception 异常
-	 */
-	public void exeScpGet(ScpCommond scp) throws Exception{
-		String rp = "";
-		for(int i = 0;i<scp.getRemotePath().length;i++){
-			rp += scp.getRemotePath()[i]+",";
-		}
-		logger.info("远端机器："+scp.getIP()+",从远端拉取【"+rp+"】到【"+scp.getLocalPath()[0]+"】");
-		Connection conn = null;
-		SCPClient scpClient = null;
-		try{
-			conn = getOpenedConnection(scp.getIP(), scp.getSshPort());
-			scpClient = conn.createSCPClient();
-			scpClient.get(scp.getRemotePath(), scp.getLocalPath()[0]);
-		}finally{
-			if(conn!=null){
-				conn.close();
 			}
 		}
 	}
@@ -267,7 +234,7 @@ public final class ShellUtil {
 			while((s = r.readLine())!=null){
 				if(!s.trim().startsWith("#") && !"".trim().equals(s)){
 					sb.append(s);
-					sb.append(System.getProperty("line.separator"));
+					sb.append("\n");
 				}
 			}
 			String shell = sb.toString();
@@ -304,57 +271,75 @@ public final class ShellUtil {
  * @author qiantao
  *
  */
-class ExecShellThread implements Callable<Result> {
+class ExecShellThread implements Callable<ShellWrapper> {
 	/**log**/
 	Logger logger = Logger.getLogger(ExecShellThread.class);
 	/**connection**/
 	private Connection connection;
-	/**commond**/
-	private ShellCommond commond;
+	/**wrapper**/
+	private ShellWrapper wrapper;
 	/**
 	 * @param con 连接
-	 * @param cmd 命令
+	 * @param w 命令
 	 */
-	ExecShellThread(Connection con,ShellCommond cmd){
+	ExecShellThread(Connection con,ShellWrapper w){
 		this.connection = con;
-		this.commond = cmd;
+		this.wrapper = w;
 	}
 	@Override
-	public Result call() throws Exception {
-		Session sess = null;
-		BufferedReader br = null;
-		BufferedReader ebr = null;
-		Result r = new Result();
-		StringBuffer sb = new StringBuffer();
-		Integer sig = null;
-		try{
-			sess = connection.openSession();
-			sess.execCommand(commond.getShell());
-			br = new BufferedReader(new InputStreamReader(new StreamGobbler(sess.getStdout()),"utf8"));
-			ebr = new BufferedReader(new InputStreamReader(new StreamGobbler(sess.getStderr()),"utf8"));
-			while((sig=sess.getExitStatus()) == null){
+	public ShellWrapper call() throws Exception {
+		if(wrapper.getCommond() instanceof ShellCommond){
+			logger.info("执行机器："+wrapper.getCommond().getIP()+",异步执行脚本："+((ShellCommond)wrapper.getCommond()).getShell());
+			Session sess = null;
+			BufferedReader br = null;
+			BufferedReader ebr = null;
+			StringBuffer sb = new StringBuffer();
+			Integer sig = null;
+			try{
+				sess = connection.openSession();
+				sess.execCommand(((ShellCommond)wrapper.getCommond()).getShell());
+				br = new BufferedReader(new InputStreamReader(new StreamGobbler(sess.getStdout()),"utf8"));
+				ebr = new BufferedReader(new InputStreamReader(new StreamGobbler(sess.getStderr()),"utf8"));
+				while((sig=sess.getExitStatus()) == null){
+					loadFromStream(br, sb);
+					loadFromStream(ebr, sb);
+					sig = sess.getExitStatus();
+					Thread.sleep(1);
+				}
 				loadFromStream(br, sb);
 				loadFromStream(ebr, sb);
-				sig = sess.getExitStatus();
-				Thread.sleep(1);
+			}finally{
+				if(sess!=null){
+					sess.close();
+				}
+				if(br != null){
+					br.close();
+				}
+				if(ebr != null){
+					ebr.close();
+				}
+				wrapper.setResult(sb.toString());
+				wrapper.setStateCode(sig);
 			}
-			loadFromStream(br, sb);
-			loadFromStream(ebr, sb);
-		}finally{
-			if(sess!=null){
-				 sess.close();
-			 }
-			 if(br != null){
-				 br.close();
-			 }
-			 if(ebr != null){
-				 ebr.close();
-			 }
-			 r.setResult(sb.toString());
-			 r.setStateCode(sig);
-			 r.setShellCommond(commond);
+		}else if(wrapper.getCommond() instanceof ScpCommond){
+			logger.info("远端机器：" + wrapper.getCommond().getIP() + ",从远端拉取【" + ((ScpCommond)wrapper.getCommond()).getRemotePath() + 
+					"】到【" + ((ScpCommond)wrapper.getCommond()).getLocalPath() + "】");
+			SCPClient scpClient = null;
+			try{
+				scpClient = connection.createSCPClient();
+				File f = new File(((ScpCommond)wrapper.getCommond()).getLocalPath());
+				if(!f.exists()){
+					f.mkdirs();
+				}
+				scpClient.get(((ScpCommond)wrapper.getCommond()).getRemotePath(), ((ScpCommond)wrapper.getCommond()).getLocalPath());
+				wrapper.setResult("文件下载成功");
+				wrapper.setStateCode(0);
+			}catch(Exception e){
+				wrapper.setResult(e.toString());
+				wrapper.setStateCode(1);
+			}
 		}
-		return r;
+		return wrapper;
 	}
 	
 	/**

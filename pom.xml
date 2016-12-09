@@ -12,6 +12,7 @@
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+		<jar.name>archivelog</jar.name>
 	</properties>
 
 	<dependencies>
@@ -30,6 +31,11 @@
 		    <artifactId>log4j-1.2-api</artifactId>
 		    <version>2.7</version>
 		</dependency>
+		<dependency>
+            <groupId>javax.mail</groupId>
+            <artifactId>mail</artifactId>
+            <version>1.4.7</version>
+        </dependency>
 		<dependency>
 		     <groupId>org.springframework.boot</groupId>
 		     <artifactId>spring-boot-starter-web</artifactId>
@@ -78,6 +84,17 @@
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <version>1.4.2.RELEASE</version>
+				 <configuration>
+			    	<mainClass>com.newera.ops.archivelog.App</mainClass>
+			    	<finalName>${jar.name}</finalName>
+			    </configuration>
+			    <executions>
+			      <execution>
+			        <goals>
+			          <goal>repackage</goal>
+			        </goals>
+			      </execution>
+			    </executions>
             </plugin>
 		</plugins>
 	</build>

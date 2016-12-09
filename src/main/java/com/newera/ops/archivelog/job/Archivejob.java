@@ -20,9 +20,9 @@ public class Archivejob {
 
 	/**
 	 * @throws Exception  Exception
-	 * 
+	 * 每周日凌晨一点执行一次
 	 */
-	@Scheduled(cron = "0 0 */1 * * * ")
+	@Scheduled(cron = "0 0 1 ? * 7 ")
     public void reportCurrentByCron() throws Exception{
 		archiveService.archivejob();
     }

@@ -1,8 +1,49 @@
 <html layout:decorator="layout">
 <meta charset="utf-8"/>
 <div layout:fragment="content">
-	敬请期待
+	<form action="/history/archiveNow" method="get">
+		<input type="submit" class="btn btn-danger" value="立即执行" id="myButton" data-loading-text="执行中..."/>
+	</form>
 
+	<table class="table table-striped" id="news_list">
+		<thead>
+			<tr>
+				<th>序号</th>
+				<th>开始时间</th>
+				<th>结束时间</th>
+				<th>详细</th>
+			</tr>
+		</thead>
+		<tbody>
+			<tr th:each="history : ${historys}">
+				<td class="message" th:text="${history.id}"></td>
+				<td class="message" th:text="${#dates.format(history.beginTime, 'yyyy-MM-dd HH:mm:ss')}"></td>
+				<td class="message" th:text="${#dates.format(history.endTime, 'yyyy-MM-dd HH:mm:ss')}"></td>
+				<td><a href="javascript:#" class="delete" data-toggle="modal" th:attr="data-target=${'#myModal'+history.id}"><span class="fa-stack"><i style="color:red"
+							class="glyphicon glyphicon-comment"></i>
+					</span></a></td>
+			</tr>
+		</tbody>
+	</table>
+	
+	<!-- Modal -->
+	<div class="modal fade" th:id="${'myModal'+history.id}" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true" th:each="history : ${historys}">
+	  <div class="modal-dialog">
+	    <div class="modal-content">
+	      <div class="modal-header">
+	        <button type="button" class="close" data-dismiss="modal"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>
+	        <h4 class="modal-title" id="myModalLabel">执行日志</h4>
+	      </div>
+	      <div class="modal-body">
+	        <p th:utext="${history.details}"></p>
+	      </div>
+	    </div>
+	  </div>
+	</div>
+	<script>
+	  $('#myButton').on('click', function () {
+	    var $btn = $(this).button('loading')
+	  })
+	</script>
 </div>
-
 </html>

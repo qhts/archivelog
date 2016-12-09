@@ -8,12 +8,13 @@ import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import com.newera.ops.archivelog.domain.History;
 import com.newera.ops.archivelog.domain.Server;
 import com.newera.ops.archivelog.domain.Settings;
-import com.newera.ops.archivelog.dto.Result;
 import com.newera.ops.archivelog.dto.ScpCommond;
 import com.newera.ops.archivelog.dto.ShellCommond;
-import com.newera.ops.archivelog.util.ShellUtil;
+import com.newera.ops.archivelog.dto.ShellWrapper;
+import com.newera.ops.archivelog.mapper.HistoryMapper;
 
 /**
  * 
@@ -21,17 +22,16 @@ import com.newera.ops.archivelog.util.ShellUtil;
  *
  */
 @Service
-public class ArchiveService {
+public class ArchiveService extends BaseService{
 	/**settingsService**/
 	@Autowired
 	private SettingsService settingsService;
-	/**shellUtil**/
-	@Autowired
-	private ShellUtil shellUtil;
 	/**serverService**/
 	@Autowired
 	private ServerService serverService;
-
+	/****/
+	@Autowired
+	private HistoryMapper mapper;
 	/**
 	 * 压缩日志
 	 * @throws Exception Exception
@@ -39,6 +39,9 @@ public class ArchiveService {
 	public void archivejob() throws Exception {
 		SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd");
 		List<Settings> list = settingsService.getAll();
+		StringBuffer sb = new StringBuffer();
+		History history = new History();
+		history.setBeginTime(new Date());
 		//遍历
 		for(Settings settings : list){
 			String zipName = settings.getZipPrefix() + sdf.format(new Date())+".zip";
@@ -48,36 +51,54 @@ public class ArchiveService {
 			params.add(settings.getModifyTime() + "");
 			String shell = shellUtil.praseShellToCmd("archive.sh", params);
 			
-			List<ShellCommond> cmds = new ArrayList<ShellCommond>();
 			//获取服务器列表
 			List<Server> servers = serverService.getServersBySettings(settings.getId());
+			List<ShellWrapper> wrappers = new ArrayList<ShellWrapper>();
+			if(servers==null || servers.size()==0){
+				continue;
+			}
 			for(Server server : servers){
+				//第一步操作，压缩
 				ShellCommond cmd = new ShellCommond();
 				cmd.setIP(server.getIP());
 				cmd.setSshPort(22);
+				cmd.setCommondName("压缩");
 				cmd.setShell(shell);
-				cmds.add(cmd);
+				ShellWrapper first = new ShellWrapper();
+				first.setCommond(cmd);
+				//第二步操作，下载
+				ScpCommond scp = new ScpCommond();
+				scp.setIP(server.getIP());
+				scp.setSshPort(22);
+				scp.setCommondName("下载");
+				scp.setLocalPath(settings.getStorageDir() + "/" + server.getIP());
+				scp.setRemotePath(settings.getLogSourceDir() + "/" + zipName);
+				ShellWrapper second = new ShellWrapper();
+				second.setCommond(scp);
+				first.setNextWrapper(second);
+				//第三步操作，删除
+				ShellCommond c = new ShellCommond();
+				c.setIP(server.getIP());
+				c.setSshPort(22);
+				c.setCommondName("删除");
+				c.setShell("rm -rf " + settings.getLogSourceDir() + "/" + zipName);
+				ShellWrapper third = new ShellWrapper();
+				third.setCommond(c);
+				second.setNextWrapper(third);
+				
+				wrappers.add(first);
 			}
-			//执行压缩命令
-			List<Result> rs = shellUtil.batchExecShell(cmds, true);
-			//对压缩成功的机器执行拉取命令并删除文件
-			for(int i=0;i<rs.size();i++){
-				if(rs.get(i).getStateCode()==0){
-					ScpCommond scp = new ScpCommond();
-					scp.setIP(rs.get(i).getShellCommond().getIP());
-					scp.setSshPort(22);
-					scp.setLocalPath(settings.getStorageDir());
-					scp.setRemotePath(settings.getLogSourceDir() + "/" + zipName);
-					shellUtil.exeScpGet(scp);
-					
-					ShellCommond cmd = new ShellCommond();
-					cmd.setIP(rs.get(i).getShellCommond().getIP());
-					cmd.setSshPort(22);
-					cmd.setShell("rm -rf " + settings.getLogSourceDir() + "/" + zipName);
-				}
-			}
-			
+			sb.append("*************************************************************************\r\n");
+			sb.append("名称：【"+settings.getName()+"】\r\n");
+			sb.append(execWrappersAndGetResult(wrappers));
 		}
+		history.setEndTime(new Date());
+		history.setDetails(sb.toString().replace("\r\n", "<br>"));
+		mapper.save(history);
+		logger.info("日志归档结束，执行结果：\r\n" + sb.toString());
+		
 	}
+
+
 
 }
